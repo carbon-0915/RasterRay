@@ -1,0 +1,28 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+*.VC.VC.opendb
+
+# Build outputs
+x64/
+Debug/
+Release/
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.idb
+*.ipch
+*.tlog
+*.log
+
+# Archives
+*.rar
+*.zip
+*.7z
+
+# Local planning notes (not published)
+docs/
