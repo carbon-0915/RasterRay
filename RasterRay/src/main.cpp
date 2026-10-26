@@ -82,6 +82,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\n=== Controls ===" << std::endl;
     std::cout << "1: Camera mode | 2: Object mode | 3: Light mode" << std::endl;
     std::cout << "Tab: Select next object/light" << std::endl;
+    std::cout << "Delete/Backspace: Remove selected object" << std::endl;
     std::cout << "WASD/QE: Move camera | Arrow keys: Rotate view" << std::endl;
     std::cout << "R + Mouse: Rotate selected object" << std::endl;
     std::cout << "Mouse drag: Move selected object/light" << std::endl;
@@ -140,6 +141,17 @@ int main(int argc, char* argv[]) {
                     } else if (editor.mode == MODE_LIGHT && !scene.lights.empty()) {
                         editor.selectedLight = (editor.selectedLight + 1) % static_cast<int>(scene.lights.size());
                         std::cout << "Selected light: " << editor.selectedLight << std::endl;
+                    }
+                }
+
+                if (event.key.key == SDLK_DELETE || event.key.key == SDLK_BACKSPACE) {
+                    if (editor.mode == MODE_OBJECT && editor.selectedObject >= 0) {
+                        scene.remove(editor.selectedObject);
+                        // 下标不变 → 自动选中原后一个；删的是最后一个时越界 → 回绕到 0
+                        if (editor.selectedObject >= static_cast<int>(scene.objects.size())) {
+                            editor.selectedObject = scene.objects.empty() ? -1 : 0;
+                        }
+                        std::cout << "Object removed" << std::endl;
                     }
                 }
 

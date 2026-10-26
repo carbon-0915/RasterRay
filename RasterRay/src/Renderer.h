@@ -33,16 +33,51 @@ struct Camera {
         return (forward() + right() * px + cameraUp() * py).normalize();
     }
 
-    // 自动取景：让包围盒充满视野
+    // 自动取景：让整个包围盒（含水平方向）完整落在视野内
     void frame(const AABB& box) {
         Vec3 center = box.center();
-        float halfHeight = (box.max.y - box.min.y) * 0.5f;   // 垂直半高（不用半对角线，太松）
-        if (halfHeight < 1e-4f) halfHeight = 1.0f;
-        float dist = halfHeight / std::tan(fov / 2.0f) * 1.1f;  // tan：让模型竖直方向填满视野
 
-        const float elev = 0.5f;
-        const float azim = 0.8f;
+        const float elev = 0.3f; //俯仰角，> 0 表示"从上往下看"
+        const float azim = 1.8f; //方位角，决定从哪个水平方向看
         Vec3 dir(std::cos(elev) * std::cos(azim), std::sin(elev), std::cos(elev) * std::sin(azim));
+
+        // 相机基：forward 指向中心（即 -dir），right/cameraUp 是屏幕上的右/上
+        Vec3 forward = Vec3(0, 0, 0) - dir;
+        Vec3 right = forward.cross(up).normalize();
+        Vec3 cameraUp = right.cross(forward).normalize();
+
+        // AABB 的 8 个角点（立方体顶点），显式列出，不用位运算
+        Vec3 corners[8] = {
+            { box.min.x, box.min.y, box.min.z },
+            { box.max.x, box.min.y, box.min.z },
+            { box.min.x, box.max.y, box.min.z },
+            { box.max.x, box.max.y, box.min.z },
+            { box.min.x, box.min.y, box.max.z },
+            { box.max.x, box.min.y, box.max.z },
+            { box.min.x, box.max.y, box.max.z },
+            { box.max.x, box.max.y, box.max.z },
+        };
+
+        // 每个角点相对中心的偏移，投影到 right（屏幕水平）/ cameraUp（屏幕竖直）轴上，
+        // 点积 = 该角点在屏幕横/竖方向离中心多远（有符号），取 min/max 得到半宽/半高。
+        float minR = FLT_MAX, maxR = -FLT_MAX, minU = FLT_MAX, maxU = -FLT_MAX;
+        for (const Vec3& corner : corners) {
+            Vec3 offset = corner - center;               // 角点相对中心的偏移向量
+            float r = offset.dot(right);                 // 投影到屏幕水平轴（有符号长度）
+            float u = offset.dot(cameraUp);              // 投影到屏幕竖直轴（有符号长度）
+            minR = std::min(minR, r); maxR = std::max(maxR, r);
+            minU = std::min(minU, u); maxU = std::max(maxU, u);
+        }
+        float halfW = (maxR - minR) * 0.5f;   // 包围盒在屏幕上的半宽
+        float halfH = (maxU - minU) * 0.5f;   // 包围盒在屏幕上的半高
+        if (halfH < 1e-4f) halfH = 1.0f;
+
+        // 距离：让半高填满竖直半视野、半宽填满水平半视野，取大的保证两个方向都装下，留 20% 余量
+        float aspect = (float)WINDOW_WIDTH / WINDOW_HEIGHT;      // 宽高比
+        float distV = halfH / std::tan(fov / 2.0f);              // 竖直：tan(半fov) = halfH / dist
+        float distH = halfW / (std::tan(fov / 2.0f) * aspect);   // 水平：水平半fov的 tan = tan(fov/2)*aspect
+        float dist = std::max(distV, distH) * 1.2f;
+
         position = center + dir * dist;
         target = center;
     }
